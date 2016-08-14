@@ -1,0 +1,50 @@
+DROP TABLE ReceiptsProducts IF EXISTS;
+DROP TABLE Products IF EXISTS;
+DROP TABLE ProductsTypes IF EXISTS;
+DROP TABLE Receipts IF EXISTS;
+
+CREATE TABLE ProductsTypes (
+  id INTEGER IDENTITY PRIMARY KEY,
+  type VARCHAR(20) NOT NULL
+);
+
+INSERT INTO ProductsTypes (type) VALUES ('BREAD');
+INSERT INTO ProductsTypes (type) VALUES ('VEGETABLE');
+INSERT INTO ProductsTypes (type) VALUES ('FRUIT');
+INSERT INTO ProductsTypes (type) VALUES ('COSMETICS');
+INSERT INTO ProductsTypes (type) VALUES ('CLOTHES');
+INSERT INTO ProductsTypes (type) VALUES ('MEAT');
+INSERT INTO ProductsTypes (type) VALUES ('SWEETS');
+INSERT INTO ProductsTypes (type) VALUES ('FISH');
+INSERT INTO ProductsTypes (type) VALUES ('DAIRY_PRODUCTS');
+INSERT INTO ProductsTypes (type) VALUES ('SPICES');
+INSERT INTO ProductsTypes (type) VALUES ('DRINKS');
+INSERT INTO ProductsTypes (type) VALUES ('ALCOHOL');
+INSERT INTO ProductsTypes (type) VALUES ('CIGARETTES');
+INSERT INTO ProductsTypes (type) VALUES ('PAPERSTUFF');
+
+CREATE TABLE Products (
+id INTEGER IDENTITY PRIMARY KEY,
+barCode VARCHAR(36) NOT NULL,
+name VARCHAR(255) NOT NULL,
+typeId INTEGER FOREIGN KEY REFERENCES ProductsTypes(id),
+nettoPriceCents INTEGER DEFAULT 0 NOT NULL,
+bruttoPriceCents INTEGER DEFAULT 0 NOT NULL,
+priceCurrency CHAR(3) DEFAULT 'PLN' NOT NULL
+);
+
+CREATE TABLE Receipts (
+  id INTEGER IDENTITY PRIMARY KEY,
+  number VARCHAR(36) NOT NULL,
+  closed BOOLEAN DEFAULT FALSE NOT NULL,
+  totalNettoSumCents INTEGER DEFAULT 0 NOT NULL,
+totalBruttoSumCents INTEGER DEFAULT 0 NOT NULL,
+priceCurrency CHAR(3) DEFAULT 'EUR' NOT NULL,
+confirmDate TIMESTAMP DEFAULT NULL
+);
+
+CREATE TABLE ReceiptsProducts (
+  id INTEGER IDENTITY PRIMARY KEY,
+  receiptId INTEGER FOREIGN KEY REFERENCES Receipts(id),
+  productId INTEGER FOREIGN KEY REFERENCES Products(id)
+);
