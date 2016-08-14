@@ -33,12 +33,7 @@ public class PurchaseProcess {
         return receipt.getReceiptNumber();
     }
 
-    /**
-     * This method adding product manually
-     * @param receiptNumber
-     * @param code
-     */
-    public PurchaseResultDto addProduct(ReceiptNumber receiptNumber, String code){
+    public PurchaseResultDto addProductManually(ReceiptNumber receiptNumber, String code){
         if (isInvalid(code)) return failureAndShow("Invalid bar-code");
 
         BarCode barCode = new BarCode(code);
@@ -51,11 +46,7 @@ public class PurchaseProcess {
         display.show(prepareInformation(product, receipt));
         return success();
     }
-
-    /**
-     * This method scanning product
-     * @param receiptNumber
-     */
+    
     public PurchaseResultDto addProduct(ReceiptNumber receiptNumber) throws DataAccessException, IllegalArgumentException, IOException {
         String scan = scanner.getProductNumber();
         if (isInvalid(scan)) return failureAndShow("Invalid bar-code");

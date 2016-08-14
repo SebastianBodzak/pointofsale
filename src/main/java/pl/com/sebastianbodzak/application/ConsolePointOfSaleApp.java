@@ -49,7 +49,7 @@ public class ConsolePointOfSaleApp {
                 break;
             } else if (command.equals("WRITE")) {
                 typeManuallyBarCodeInstrunction(); //information for seller only (on seller's display)
-                purchaseProcess.addProduct(receiptNumber, scanner.next());
+                purchaseProcess.addProductManually(receiptNumber, scanner.next());
             } else if (command.equals("ABORT")) {
                 purchaseProcess.abort(receiptNumber);
                 break;

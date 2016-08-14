@@ -82,7 +82,7 @@ public class PurchaseProcessTest {
 
     @Test
     public void shouldNotAddProductBecauseOfWrongManuallyType() {
-        PurchaseResultDto result = purchaseProcess.addProduct(receiptNumber, null);
+        PurchaseResultDto result = purchaseProcess.addProductManually(receiptNumber, null);
 
         assertFalse(result.isSuccess());
         assertEquals(INVALID_CODE_MESSAGE, result.getFailureReason());
@@ -92,7 +92,7 @@ public class PurchaseProcessTest {
     public void shouldNotAddProductManuallyBecuaseProductNotFound() throws IOException {
         when(productRepository.load(new BarCode(CODE))).thenReturn(null);
 
-        PurchaseResultDto result = purchaseProcess.addProduct(receiptNumber, CODE);
+        PurchaseResultDto result = purchaseProcess.addProductManually(receiptNumber, CODE);
 
         assertFalse(result.isSuccess());
         assertEquals(PRODUCT_NOT_FOUND_CODE_MESSAGE, result.getFailureReason());
@@ -110,7 +110,7 @@ public class PurchaseProcessTest {
         when(receipt.getTotalBruttoSum().toString()).thenReturn("");
         doNothing().when(display).show("");
 
-        PurchaseResultDto result = purchaseProcess.addProduct(receiptNumber, CODE);
+        PurchaseResultDto result = purchaseProcess.addProductManually(receiptNumber, CODE);
 
         assertTrue(result.isSuccess());
     }
