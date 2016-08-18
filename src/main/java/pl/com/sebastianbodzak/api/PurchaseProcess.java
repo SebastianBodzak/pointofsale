@@ -46,7 +46,7 @@ public class PurchaseProcess {
         display.show(prepareInformation(product, receipt));
         return success();
     }
-    
+
     public PurchaseResultDto addProduct(ReceiptNumber receiptNumber) throws DataAccessException, IllegalArgumentException, IOException {
         String scan = scanner.getProductNumber();
         if (isInvalid(scan)) return failureAndShow("Invalid bar-code");

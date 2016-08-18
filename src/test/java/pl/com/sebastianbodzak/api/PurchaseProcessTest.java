@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.LinkedList;
 
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertFalse;
@@ -29,13 +30,17 @@ import static pl.com.sebastianbodzak.domain.ProductType.COSMETICS;
 @RunWith(MockitoJUnitRunner.class)
 public class PurchaseProcessTest {
 
+    private static final Long EPS = 2L * 1000L;
+
     private static final String CODE = "testCode";
     private static final String INVALID_CODE_MESSAGE = "Invalid bar-code";
     private static final String ABORTED_PURCHASE_MESSAGE = "Transaction has been aborted";
     private static final String INVALID_PURCHASE_CONFIRM_MESSAGE = "Transaction has been aborted because no product bought";
     private static final String PRODUCT_NOT_FOUND_CODE_MESSAGE = "Product not found";
+    private static final Money TOTAL_NETTO_SUM = new Money(10);
+    private static final Money TOTAL_BRUTTO_SUM = new Money(12);
     private static final Product PRODUCT = new Product(1, new BarCode(CODE), "testname", new Money(10), new Money(12), COSMETICS);
-    private static final Receipt RECEIPT = new Receipt(1, new ReceiptNumber(), false, new Money(10), new Money(12), Arrays.asList(PRODUCT), new Date());
+    private static final Receipt RECEIPT = new Receipt(1, new ReceiptNumber(), false, TOTAL_NETTO_SUM, TOTAL_BRUTTO_SUM, Arrays.asList(PRODUCT), new Date());
 
     private PurchaseProcess purchaseProcess;
 
@@ -55,17 +60,10 @@ public class PurchaseProcessTest {
     private ReceiptRepository receiptRepository;
 
     @Mock
-    private ReceiptNumber receiptNumber;
+    private ReceiptNumber anyReceiptNumber;
 
     @Mock
-    private Receipt receipt;
-
-    @Mock
-    private Product product;
-
-    @Mock
-    private Money money;
-
+    private Receipt anyReceipt;
 
     @Before
     public void setUp() {
@@ -82,7 +80,7 @@ public class PurchaseProcessTest {
 
     @Test
     public void shouldNotAddProductBecauseOfWrongManuallyType() {
-        PurchaseResultDto result = purchaseProcess.addProductManually(receiptNumber, null);
+        PurchaseResultDto result = purchaseProcess.addProductManually(anyReceiptNumber, null);
 
         assertFalse(result.isSuccess());
         assertEquals(INVALID_CODE_MESSAGE, result.getFailureReason());
@@ -92,34 +90,51 @@ public class PurchaseProcessTest {
     public void shouldNotAddProductManuallyBecuaseProductNotFound() throws IOException {
         when(productRepository.load(new BarCode(CODE))).thenReturn(null);
 
-        PurchaseResultDto result = purchaseProcess.addProductManually(receiptNumber, CODE);
+        PurchaseResultDto result = purchaseProcess.addProductManually(anyReceiptNumber, CODE);
 
         assertFalse(result.isSuccess());
         assertEquals(PRODUCT_NOT_FOUND_CODE_MESSAGE, result.getFailureReason());
     }
 
     @Test
-    public void shouldAddProductNumberWriteManually() throws Exception {
-        when(scanner.getProductNumber()).thenReturn(CODE);
+    public void shouldAddProductNumberManually() throws Exception {
+        Receipt receipt = new Receipt(9, anyReceiptNumber, false, new Money(0), new Money(0), new LinkedList<>(), null);
+        Product product = new Product(1, new BarCode(CODE), "testname", new Money(10), new Money(12), COSMETICS);
+
         when(productRepository.load(new BarCode(CODE))).thenReturn(product);
-        when(receiptRepository.load(receiptNumber)).thenReturn(receipt);
-        when(product.getName()).thenReturn("");
-        when(product.getBruttoPrice()).thenReturn(money);
-        when(product.getBruttoPrice().toString()).thenReturn("");
-        when(receipt.getTotalBruttoSum()).thenReturn(money);
-        when(receipt.getTotalBruttoSum().toString()).thenReturn("");
+        when(receiptRepository.load(anyReceiptNumber)).thenReturn(receipt);
         doNothing().when(display).show("");
 
-        PurchaseResultDto result = purchaseProcess.addProductManually(receiptNumber, CODE);
+        PurchaseResultDto result = purchaseProcess.addProductManually(anyReceiptNumber, CODE);
 
         assertTrue(result.isSuccess());
+        assertEquals(1, receipt.getProducts().size());
+        assertEquals(TOTAL_NETTO_SUM, receipt.getTotalNettoSum());
+        assertEquals(TOTAL_BRUTTO_SUM, receipt.getTotalBruttoSum());
+    }
+
+    @Test
+    public void shouldAddAnotherProductNumberManually() throws Exception {
+        Product product = new Product(1, new BarCode(CODE), "testname", new Money(10), new Money(12), COSMETICS);
+        Receipt receipt = new Receipt(9, anyReceiptNumber, false, TOTAL_NETTO_SUM, TOTAL_BRUTTO_SUM, new LinkedList<>(Arrays.asList(product)), null);
+
+        when(productRepository.load(new BarCode(CODE))).thenReturn(product);
+        when(receiptRepository.load(anyReceiptNumber)).thenReturn(receipt);
+        doNothing().when(display).show("");
+
+        PurchaseResultDto result = purchaseProcess.addProductManually(anyReceiptNumber, CODE);
+
+        assertTrue(result.isSuccess());
+        assertEquals(2, receipt.getProducts().size());
+        assertEquals(TOTAL_NETTO_SUM.multiply(2), receipt.getTotalNettoSum());
+        assertEquals(TOTAL_BRUTTO_SUM.multiply(2), receipt.getTotalBruttoSum());
     }
 
     @Test
     public void shouldNotAddProductBecauseOfInvalidScan() throws IOException {
         when(scanner.getProductNumber()).thenReturn(null);
 
-        PurchaseResultDto result = purchaseProcess.addProduct(receiptNumber);
+        PurchaseResultDto result = purchaseProcess.addProduct(anyReceiptNumber);
 
         assertFalse(result.isSuccess());
         assertEquals(INVALID_CODE_MESSAGE, result.getFailureReason());
@@ -130,7 +145,7 @@ public class PurchaseProcessTest {
         when(scanner.getProductNumber()).thenReturn(CODE);
         when(productRepository.load(new BarCode(CODE))).thenReturn(null);
 
-        PurchaseResultDto result = purchaseProcess.addProduct(receiptNumber);
+        PurchaseResultDto result = purchaseProcess.addProduct(anyReceiptNumber);
 
         assertFalse(result.isSuccess());
         assertEquals(PRODUCT_NOT_FOUND_CODE_MESSAGE, result.getFailureReason());
@@ -138,27 +153,46 @@ public class PurchaseProcessTest {
 
     @Test
     public void shouldAddProductNumber() throws Exception {
+        Receipt receipt = new Receipt(9, anyReceiptNumber, false, new Money(0), new Money(0), new LinkedList<>(), null);
+        Product product = new Product(1, new BarCode(CODE), "testname", new Money(10), new Money(12), COSMETICS);
+
         when(scanner.getProductNumber()).thenReturn(CODE);
         when(productRepository.load(new BarCode(CODE))).thenReturn(product);
-        when(receiptRepository.load(receiptNumber)).thenReturn(receipt);
-        when(product.getName()).thenReturn("");
-        when(product.getBruttoPrice()).thenReturn(money);
-        when(product.getBruttoPrice().toString()).thenReturn("");
-        when(receipt.getTotalBruttoSum()).thenReturn(money);
-        when(receipt.getTotalBruttoSum().toString()).thenReturn("");
+        when(receiptRepository.load(anyReceiptNumber)).thenReturn(receipt);
         doNothing().when(display).show("");
 
-        PurchaseResultDto result = purchaseProcess.addProduct(receiptNumber);
+        PurchaseResultDto result = purchaseProcess.addProduct(anyReceiptNumber);
 
         assertTrue(result.isSuccess());
+        assertEquals(1, receipt.getProducts().size());
+        assertEquals(TOTAL_NETTO_SUM, receipt.getTotalNettoSum());
+        assertEquals(TOTAL_BRUTTO_SUM, receipt.getTotalBruttoSum());
+    }
+
+    @Test
+    public void shouldAddAnotherProductNumber() throws Exception {
+        Product product = new Product(1, new BarCode(CODE), "testname", new Money(10), new Money(12), COSMETICS);
+        Receipt receipt = new Receipt(9, anyReceiptNumber, false, TOTAL_NETTO_SUM, TOTAL_BRUTTO_SUM, new LinkedList<>(Arrays.asList(product)), null);
+
+        when(scanner.getProductNumber()).thenReturn(CODE);
+        when(productRepository.load(new BarCode(CODE))).thenReturn(product);
+        when(receiptRepository.load(anyReceiptNumber)).thenReturn(receipt);
+        doNothing().when(display).show("");
+
+        PurchaseResultDto result = purchaseProcess.addProduct(anyReceiptNumber);
+
+        assertTrue(result.isSuccess());
+        assertEquals(2, receipt.getProducts().size());
+        assertEquals(TOTAL_NETTO_SUM.multiply(2), receipt.getTotalNettoSum());
+        assertEquals(TOTAL_BRUTTO_SUM.multiply(2), receipt.getTotalBruttoSum());
     }
 
     @Test
     public void shouldAbortPurchaseProcess() throws SQLException {
-        when(receiptRepository.load(receiptNumber)).thenReturn(receipt);
-        doNothing().when(receiptRepository).delete(receipt);
+        when(receiptRepository.load(anyReceiptNumber)).thenReturn(anyReceipt);
+        doNothing().when(receiptRepository).delete(anyReceipt);
 
-        PurchaseResultDto result = purchaseProcess.abort(receiptNumber);
+        PurchaseResultDto result = purchaseProcess.abort(anyReceiptNumber);
 
         assertFalse(result.isSuccess());
         assertEquals(ABORTED_PURCHASE_MESSAGE, result.getFailureReason());
@@ -166,9 +200,10 @@ public class PurchaseProcessTest {
 
     @Test
     public void shouldNotConfirmPurchaseProcess() throws SQLException {
-        when(receiptRepository.load(receiptNumber)).thenReturn(receipt);
+        Receipt receipt = new Receipt(9, anyReceiptNumber, false, TOTAL_NETTO_SUM, TOTAL_BRUTTO_SUM, new LinkedList<>(), null);
+        when(receiptRepository.load(anyReceiptNumber)).thenReturn(receipt);
 
-        PurchaseResultDto result = purchaseProcess.confirmAndPrint(receiptNumber);
+        PurchaseResultDto result = purchaseProcess.confirmAndPrint(anyReceiptNumber);
 
         assertFalse(result.isSuccess());
         assertEquals(INVALID_PURCHASE_CONFIRM_MESSAGE, result.getFailureReason());
@@ -176,22 +211,21 @@ public class PurchaseProcessTest {
 
     @Test
     public void shouldConfirmPurchaseProcess() throws SQLException {
-        when(receiptRepository.load(receiptNumber)).thenReturn(RECEIPT);
-        RECEIPT.confirm();
+        when(receiptRepository.load(anyReceiptNumber)).thenReturn(RECEIPT);
         doNothing().when(receiptRepository).save(RECEIPT);
         Document document = DocumentFactory.createFrom(RECEIPT);
-        doNothing().when(printer).print(document);
+        doNothing().when(mock(Printer.class)).print(document);
 
-        boolean containsNameOfProduct = document.getContent().contains(PRODUCT.getName());
-        boolean containsPriceOfProduct = document.getContent().contains(PRODUCT.getBruttoPrice().toString());
-        boolean containsTotalNettoPrice = document.getContent().contains(RECEIPT.getTotalNettoSum().toString());
-        boolean containsTotalBruttoPrice = document.getContent().contains(RECEIPT.getTotalBruttoSum().toString());
+        purchaseProcess.confirmAndPrint(anyReceiptNumber);
+
+        assertEquals(TOTAL_NETTO_SUM, RECEIPT.getTotalNettoSum());
+        assertEquals(TOTAL_BRUTTO_SUM, RECEIPT.getTotalBruttoSum());
         assertNotNull(RECEIPT);
         assertTrue(RECEIPT.isClosed());
-        assertNotNull(RECEIPT.getConfirmationDate());
-        assertTrue(containsNameOfProduct);
-        assertTrue(containsPriceOfProduct);
-        assertTrue(containsTotalNettoPrice);
-        assertTrue(containsTotalBruttoPrice);
+        assertTrue(Math.abs(new Date().getTime() - RECEIPT.getConfirmationDate().getTime()) < EPS);
+        assertTrue(document.getContent().contains(PRODUCT.getName()));
+        assertTrue(document.getContent().contains(PRODUCT.getBruttoPrice().toString()));
+        assertTrue(document.getContent().contains(RECEIPT.getTotalNettoSum().toString()));
+        assertTrue(document.getContent().contains(RECEIPT.getTotalBruttoSum().toString()));
     }
 }
